@@ -25,7 +25,7 @@
                 <artifactId>reststop-maven-plugin</artifactId>
                 <version>${reststop.version}</version>
                 <configuration>
-                    <applicationName>rpmrepo</applicationName>
+                    <applicationName>rpmrepo-app</applicationName>
                     <!-- Adds tracking of code base of <plugins>, enabling automatic recompile and hot-deploy. -->
                     <addDevelopmentPlugins>true</addDevelopmentPlugins>
                     <path>/</path>
@@ -139,4 +139,76 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>dist</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>io.fabric8</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <version>0.24.0</version>
+                        <executions>
+                            <execution>
+                                <id>start</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>build</goal>
+                                <!--    <goal>push</goal>-->
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <images>
+                                <image>
+                                    <name>nvdbapnevegdata/rpmrepo:latest</name>
+                                    <alias>rpmrepo</alias>
+                                    <build>
+                                        <maintainer>marvin.lillehaug@kantega.no</maintainer>
+                                        <from>openjdk:10-jdk</from>
+                                        <assembly>
+                                            <descriptor>docker-assembly.xml</descriptor>
+                                        </assembly>
+                                        <ports>
+                                            <port>8080</port>
+                                        </ports>
+                                        <runCmds>
+                                            <runCmd>apt-get update &amp;&amp; apt-get install -y createrepo</runCmd>
+                                            <runCmd>
+                                                ln -s /maven/opt/rpmrepo-app /opt/rpmrepo-app
+                                            </runCmd>
+                                        </runCmds>
+                                        <cmd>
+                                            <shell>
+                                                java \
+                                                --add-modules java.xml.ws.annotation,java.xml.bind \
+                                                -Djava.awt.headless=true \
+                                                -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8000 \
+                                                -Dlogback.configurationFile=/opt/rpmrepo-app/conf/logback.xml \
+                                                -jar /opt/rpmrepo-app/start.jar \
+                                                --config /opt/rpmrepo-app/conf/rpmrepo.conf\
+                                                --repository /opt/rpmrepo-app/repository \
+                                                --plugins /opt/rpmrepo-app/plugins.xml
+                                            </shell>
+                                        </cmd>
+                                    </build>
+                                    <run>
+                                        <ports>
+                                            <port>8080:8080</port>
+                                        </ports>
+                                        <wait>
+                                            <!-- ${docker.host.address} is set automatically by the plugin -->
+                                            <url>http://${docker.host.address}:8080/</url>
+                                            <time>60000</time>
+                                        </wait>
+                                    </run>
+                                </image>
+                            </images>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

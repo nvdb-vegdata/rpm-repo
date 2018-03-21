@@ -24,7 +24,8 @@
         </encoder>
     </appender>
 
-    <root level="DEBUG">
+    <logger name="no.kantega.rpmrepo" level="DEBUG" />
+    <root level="INFO">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FILE"/>
     </root>
