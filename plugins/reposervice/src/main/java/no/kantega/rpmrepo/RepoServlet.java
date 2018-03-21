@@ -17,6 +17,8 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 
+import static java.util.Objects.nonNull;
+
 class RepoServlet extends HttpServlet {
 
     private static final Logger log = LoggerFactory.getLogger(RepoServlet.class);
@@ -44,8 +46,10 @@ class RepoServlet extends HttpServlet {
 
         File repoPath = new File(repoDir, path);
         if(!repoPath.exists()) {
+            log.info(repoPath.getAbsolutePath() + " did not exist");
             resp.setStatus(404);
         } else if(repoPath.isDirectory()) {
+            log.info("Listing directory " + repoPath.getAbsolutePath());
             listContent(repoPath, fullPath, resp);
         } else {
             streamFile(repoPath, req.getServletContext(), resp);
@@ -63,7 +67,9 @@ class RepoServlet extends HttpServlet {
     }
 
     private void streamFile(File repoFile, ServletContext servletContext, HttpServletResponse resp) throws IOException {
-        resp.setHeader("Content-Type", servletContext.getMimeType(repoFile.getName()));
+        String mimeType = getMimeType(repoFile, servletContext);
+        log.info("Streaming file {} with mimeType {}", repoFile.getAbsolutePath(), mimeType);
+        resp.setHeader("Content-Type", mimeType);
         resp.setHeader("Content-Length", String.valueOf(repoFile.length()));
         resp.setHeader("Content-Disposition",
                 "attachment; filename=\"" + repoFile.getName() + "\"");
@@ -71,6 +77,30 @@ class RepoServlet extends HttpServlet {
         try(var fis = new FileInputStream(repoFile)) {
             fis.transferTo(resp.getOutputStream());
         }
+    }
+
+    private String getMimeType(File repoFile, ServletContext servletContext) {
+        String name = repoFile.getName();
+        String mimeType = servletContext.getMimeType(name);
+        if(nonNull(mimeType)) {
+            return mimeType;
+        }
+        if(name.endsWith(".rpm")) {
+            return "application/x-rpm";
+        } else if(name.endsWith(".gz")) {
+            return "application/x-gzip";
+        } else if(name.endsWith(".bz2")) {
+            return "application/bzip2";
+        } else if(name.endsWith(".md5")) {
+            return "application/x-checksum";
+        } else if(name.endsWith(".sha1")) {
+            return "application/x-checksum";
+        } else if(name.endsWith(".asc")) {
+            return "text/plain";
+        } else if(name.endsWith(".key")) {
+            return "application/octet-stream";
+        }
+        return mimeType;
     }
 
     private void listContent(File repoPath, String fullPath, HttpServletResponse resp) throws IOException {
@@ -82,7 +112,8 @@ class RepoServlet extends HttpServlet {
                     "</head>\n" +
                     "<body>\n" +
                     "<h1>Index of " + fullPath + "</h1>\n" +
-                    "<pre>Name Last modified Size</pre><hr/>\n");
+                    "<pre>Name Last modified Size</pre><hr/>\n" +
+                    "<pre>");
             File[] files = repoPath.listFiles();
             if (files != null) {
                 for (File file : files) {
