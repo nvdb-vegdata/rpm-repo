@@ -1,10 +1,7 @@
 package no.kantega.rpmrepo;
 
-import org.apache.commons.fileupload.FileItemIterator;
-import org.apache.commons.fileupload.FileItemStream;
-import org.apache.commons.fileupload.FileUploadException;
-import org.apache.commons.fileupload.disk.DiskFileItemFactory;
-import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.*;
@@ -12,21 +9,30 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.List;
 
 @Path("rpm")
 public class RepoResource {
 
-    @Path("upload/{version}/{file}")
+    private static final Logger log = LoggerFactory.getLogger(RepoResource.class);
+    private final File repoDir;
+
+    public RepoResource(File repoDir) {
+        this.repoDir = repoDir;
+    }
+
+    @Path("upload/{app}/{version}/{file}")
     @PUT
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response uploadRpm(@Context HttpServletRequest request,
+                              @PathParam("app") String app,
                               @PathParam("version") String version,
                               @PathParam("file") String file) {
-
-        try(var os = new FileOutputStream(new File("/tmp/" + file))) {
+        var versionDir = new File(repoDir, version);
+        versionDir.mkdirs();
+        try(var os = new FileOutputStream(new File(versionDir,  file))) {
             long bytesTransfered = request.getInputStream().transferTo(os);
             long expectedLength = Long.parseLong(request.getHeader("Content-Length"));
             if(bytesTransfered != expectedLength) {
@@ -34,13 +40,14 @@ public class RepoResource {
                         .entity("Bytes transfered (" + bytesTransfered + ") and Content-Length ("
                         + expectedLength + ") differ").build();
             }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
+            ProcessBuilder p = new ProcessBuilder(List.of("createrepo", this.repoDir.getAbsolutePath()))
+                    .inheritIO();
+            Process start = p.start();
+            start.onExit().thenAccept(process -> log.info("{} done"));
         } catch (IOException e) {
-            e.printStackTrace();
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
         }
 
-
-        return Response.ok().build();
+        return Response.accepted().build();
     }
 }
