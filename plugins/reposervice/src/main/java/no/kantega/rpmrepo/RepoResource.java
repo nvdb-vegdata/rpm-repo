@@ -28,18 +28,14 @@ public class RepoResource {
                               @PathParam("app") String app,
                               @PathParam("version") String version,
                               @PathParam("file") String file) {
-        var versionDir = new File(repoDir, version);
+        var appDir = new File(repoDir, app);
+        var versionDir = new File(appDir, version);
         versionDir.mkdirs();
         log.info("Got file {} {} {}", app, version, file);
         try(var os = new FileOutputStream(new File(versionDir,  file))) {
             long bytesTransfered = request.getInputStream().transferTo(os);
-            long expectedLength = Long.parseLong(request.getHeader("Content-Length"));
-            if(bytesTransfered != expectedLength) {
-                log.info("Content length {} != {}", bytesTransfered, expectedLength);
-                return Response.status(Response.Status.EXPECTATION_FAILED)
-                        .entity("Bytes transfered (" + bytesTransfered + ") and Content-Length ("
-                        + expectedLength + ") differ").build();
-            }
+            log.info("Content length {}", bytesTransfered);
+
             ProcessBuilder p = new ProcessBuilder(List.of("createrepo", this.repoDir.getAbsolutePath()))
                     .inheritIO()
                     .redirectErrorStream(true);

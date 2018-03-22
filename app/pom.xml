@@ -155,7 +155,7 @@
                                 <phase>package</phase>
                                 <goals>
                                     <goal>build</goal>
-                                <!--    <goal>push</goal>-->
+                                    <goal>push</goal>
                                 </goals>
                             </execution>
                         </executions>
@@ -187,7 +187,7 @@
                                                 -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8000 \
                                                 -Dlogback.configurationFile=/opt/rpmrepo-app/conf/logback.xml \
                                                 -jar /opt/rpmrepo-app/start.jar \
-                                                --config /opt/rpmrepo-app/conf/rpmrepo.conf\
+                                                --config /opt/rpmrepo-app/conf/rpmrepo.conf \
                                                 --repository /opt/rpmrepo-app/repository \
                                                 --plugins /opt/rpmrepo-app/plugins.xml
                                             </shell>
